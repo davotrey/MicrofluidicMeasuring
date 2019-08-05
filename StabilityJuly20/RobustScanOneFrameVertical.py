@@ -174,6 +174,8 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
     totalVertShift = maxVert - minVert                                                              # The total shift is the difference between vertical coordinates.
     print("minVert: ",minVert," maxVert: ",maxVert," totalVertShift: ",totalVertShift)              # Print out the values
 
+    row_scan_shifted = []                                                                           # Initialize lists to hold the shifted dry edge of the device.
+    column_scan_shifted = []
 
     # This block of code is for scanning the frames of the video and comparing with the dry device.
     actualStartingFrame = 500                                                                       # The frame where we begin measuring
@@ -182,7 +184,9 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
     camera.set(cv2.CAP_PROP_POS_FRAMES, actualStartingFrame)                                        # Set the frame to the starting frame.
     while True:                                                                                     # Keep looping here until 'q' is pressed or the video is complete.
         measurements = []                                                                           # List holds the measurements of the scan.
-        measurements.clear()                                                                        # Clear the list every new frame
+        measurements.clear()                                                                        # Clear the lists every new frame
+        row_scan_shifted.clear()                                                    
+        column_scan_shifted.clear()
         count = count + 1                                                                           # Frame counter.
         ret, frame = camera.read()                                                                  # Read a frame.
 
@@ -194,24 +198,25 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)                                              # Turn it gray.
         ret, thresh = cv2.threshold(gray, wetThreshVal, 255, cv2.THRESH_BINARY)                     # Binary thresholding using a value between 0 and 255 to convert all pixels to high or low.
         cv2.imshow('Binary Threshold', thresh)                                                      # Draw the result - this is the video playing.
-        for x in range(len(column_scan)):                                                           # For the length of the scanning list plot each coordinate with a blue pixel
-            cv2.line(frame, (column_scan[x],scan_range[x]), (column_scan[x],scan_range[x]), (0, 255, 0), 1)
         y = 0                                                                                       # Reset y to zero every frame.
         vertShift = int(500 - yShiftData[count-actualStartingFrame-1])                              # Every frame has the vertical shift accounted for given the data found through tracking.
         localMaxVert = int(yShiftData[count-actualStartingFrame-1])                                 # Each frame will have a different vertical coordinate.
         vertDifference = int(localMaxVert - minVert)                                                # The difference between the vertical coordinate of each frame and the final frame.
         xshift = int(6 - xShiftData[count - actualStartingFrame - 1])                               # Horizontal shift for each frame.
+        for x in range(len(column_scan)):                                                           # For the length of the scanning list plot each coordinate with a blue pixel
+            column_scan_shifted.append(column_scan[x]-xshift)                                       # Shift the columns by the horizontal shift loaded.
+            row_scan_shifted.append(scan_range[x]+vertDifference)                                   # Shift the rows by the vertical shift loaded.
+            cv2.line(frame, (column_scan_shifted[x],row_scan_shifted[x]), (column_scan_shifted[x],row_scan_shifted[x]), (0, 255, 0), 1)
         for y1 in range(260,450):                                                                   # Vertical scanning range.
-            y = y1 - vertDifference - offset                                                                 # Each y1 in the vertical scanning range is adjusted by the current frames vertical shift.
-            xcoordinate = column_scan[y]                                                            # x coordinate for the dry edge of the device.
-            ycoordinate = scan_range[y]                                                             # y coordinate for the dry edge of the device.
+            y = y1 - vertDifference - offset                                                        # Each y1 in the vertical scanning range is adjusted by the current frames vertical shift.
+            xcoordinate = column_scan_shifted[y1-vertShift-vertDifference]                          # x coordinate for the dry edge of the device.
             for x in range(xcoordinate - scanTolerance, xcoordinate + scanTolerance):               # Horizontal scanning region using the scanTolerance.
-                px = thresh[y1-vertShift,x]                                                                   # Scanning pixel for the wet device. 
-                pxplusone = thresh[y1-vertShift,x+1]                                                          # Scanning pixel one ahead for the wet device.
+                px = thresh[y1-vertShift,x]                                                         # Scanning pixel for the wet device. 
+                pxplusone = thresh[y1-vertShift,x+1]                                                # Scanning pixel one ahead for the wet device.
                 if px == WHITE and pxplusone == BLACK:                                              # If the scanning pixel is white and the pixel to the right is black.
                     # print((xcoordinate-xshift-(x+1))*scalebar)                                      # Printout.
                     measurements.append((xcoordinate - (x+1))*scalebar)                    # The measurement is the difference between the dry edge and the wet edge with the shift taken into account.
-                    cv2.rectangle(frame,(x,y1-vertShift),(x,y1-vertShift),(0,0,255),1)                  # Draw a rectangle to show the vertical scanning region.
+                    cv2.rectangle(frame,(x+1,y1-vertShift),(x+1,y1-vertShift),(0,0,255),1)                  # Draw a rectangle to show the vertical scanning region.
                     cv2.rectangle(frame,(xcoordinate,y1-vertShift),(xcoordinate,y1-vertShift),(255,0,0),1)                  # Draw a rectangle to show the vertical scanning region.
                     break                                                                           # If we find the wet edge of the device, leave the horizontal scan.
         print("y: ",y," vertDifference: ",vertDifference," vertShift: ", vertShift," xshift: ",xshift)
