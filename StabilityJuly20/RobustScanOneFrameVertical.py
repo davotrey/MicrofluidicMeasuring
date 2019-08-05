@@ -136,7 +136,7 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
     print('SCALEBAR: ', scalebar)                                                                   # Print out the scale found above.
     cv2.waitKey(0)                                                                                  # Wait for a key press from the user.
     # This block of code is for finding the edge of the dry device.
-    dryFrameJumpback = 520    
+    dryFrameJumpback = 510    
     # dryFrameJumpback = 300                                                                        # The dry device frame is taken this many frames from the end of the video after the water is evaporated.
     camera = cv2.VideoCapture(videoFilename)                                                        # Connect to the .avi file provided in the parameter videoFilename.
     endOfVideo = int(camera.get(cv2.CAP_PROP_FRAME_COUNT))                                          # Finds the number of frames in the video.
