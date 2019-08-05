@@ -213,9 +213,9 @@ def filmDepth(fiberFilename, dryFilename, wetFilename, showFiber, showDry, showW
     cv2.destroyAllWindows()                                             # Before leaving the filmDepth function, clear all windows.
     return
 
-filmDepth("F_6.5_OilFiber.jpg","F_6.5_OilDry.jpg","F_6.5_Stability1Hour_2460.jpg",1,1,1) # Call the function with three files and three ints that tell the function whether to print images and debugging
+filmDepth("F_6.5_Fiber.jpg","F_6.5_Dry.jpg","F_6.5_Wet.jpg",1,1,1) # Call the function with three files and three ints that tell the function whether to print images and debugging
 
-showFrame = cv2.imread("F_6.5_Stability1Hour_2460.jpg",1)   # Set showFrame to the image in the given file, where 1 allows for channels that show color.
+showFrame = cv2.imread("F_6.5_Wet.jpg",1)   # Set showFrame to the image in the given file, where 1 allows for channels that show color.
 y = TOP                                     # Set the variable y to the value of the top of the screen.
 spacer = 24                                 # Have a spacer of 24 for printing the measurements.
 font = cv2.FONT_HERSHEY_SIMPLEX             # Normal size sans-serif font.

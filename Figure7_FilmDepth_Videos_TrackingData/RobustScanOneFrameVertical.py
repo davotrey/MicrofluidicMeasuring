@@ -310,5 +310,5 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
             print('Count',count)
             break
 
-filmStablity("Fiber.jpg","Dry.jpg","Wet.avi",SHOW,SHOW,SHOW)     # Call the filmStability function by inputing the correct files.
+filmStablity("FiberFrameJuly20.jpg","Dry.jpg","WetVidJuly20.avi",SHOW,SHOW,SHOW)     # Call the filmStability function by inputing the correct files.
 
