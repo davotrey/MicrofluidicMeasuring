@@ -86,8 +86,8 @@ def ScanningRegion(frame,show):
 # be used for thresholding.
 def findThreshValue(imageOrVideo,frameFromVideo,filename,rectOneLeft_x,rectOneRight_x,rectOneTop_y,rectOneBot_y,show,rectTwoLeft_x,rectTwoRight_x,rectTwoTop_y,rectTwoBot_y):
     MEAN = 2                                                                                        # For finding the mean between two measurements.
-    IMAGE = 0
-    VIDEO = 1
+    IMAGE = 0                                                                                       # If the value of imageOrVideo is 0, it is an image.
+    VIDEO = 1                                                                                       # If the value of imageOrVideo is 1, it is a video.
     if (imageOrVideo == IMAGE):                                                                     # If the frame is a separate .jpg or .png file
         frame = cv2.imread(filename,1)                                                              # Read the image with the filename offered in the parameter.
     elif (imageOrVideo == VIDEO):                                                                   # Else if the frame is passed in from a video
@@ -121,6 +121,9 @@ def findThreshValue(imageOrVideo,frameFromVideo,filename,rectOneLeft_x,rectOneRi
 
 
 def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showWet):
+    meas1 = 300                                                                                     # This will be the row where we take our first measurement.
+    meas2 = 350                                                                                     # Currently the code supports three total measurements.
+    meas3 = 800                                                                                     # 
     IMAGE = 0                                                                                       # A flag that tells other functions if a file is an image or a video.
     VIDEO = 1
     # This block of code is for finding the width of the fiber.
@@ -149,157 +152,214 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
     grayed = cv2.cvtColor(dryFrame, cv2.COLOR_BGR2GRAY)                                               # Turn it gray.
     ret, dryThresh = cv2.threshold(grayed, dryThreshVal, 255, cv2.THRESH_BINARY)                      # Binary threshold the grayscale image with the value we found.
     scan_range = ScanningRegion(dryThresh, showDry)                                                 # Calls a function to find the scanning range, changing the global list column_scan and the local list scan_range.
-    offset = BOTTOM + 1 - len(scan_range)                                                               # The offset is important if the top of the device is visible and no edge could be found at the top of the screen.
+    offset = BOTTOM - len(scan_range)                                                               # The offset is important if the top of the device is visible and no edge could be found at the top of the screen.
     if showDry == SHOW:                                                                             # If the parameter showDry is 1.
         camera.set(cv2.CAP_PROP_POS_FRAMES, endOfVideo-dryFrameJumpback)                                # Set the frame to the end of the video if using water (it should have evaporated)
         ret, dryFrame = camera.read()                                                                 # Set the dryFrame by reading the camera at the designated frame.
         for x in range(len(column_scan)):                                                           # For the length of the scanning list plot each coordinate with a blue pixel
-            cv2.rectangle(dryFrame,(600,260-64),(800,450-64),(0,0,255),1)
             cv2.line(dryFrame, (column_scan[x],scan_range[x]), (column_scan[x],scan_range[x]), (178, 34, 34), 1)
-        # cv2.line(dryFrame, (LEFT_QUARTER,meas1), (RIGHT_QUARTER,meas1), (0, 0, 255), 6)           # Draw a line to show the start of the scanning region.
-        # cv2.line(dryFrame, (LEFT_QUARTER,meas2), (RIGHT_QUARTER,meas2), (255, 0, 0), 6)           # Draw a line to show the end of the scanning region.
-        # cv2.line(dryFrame, (LEFT_QUARTER,meas3), (RIGHT_QUARTER,meas3), (0, 130, 0), 6)           # Draw a line to show the end of the scanning region.
+        cv2.line(dryFrame, (LEFT_QUARTER,meas1), (RIGHT_QUARTER,meas1), (0, 0, 255), 6)           # Draw a line to show the start of the scanning region.
+        cv2.line(dryFrame, (LEFT_QUARTER,meas2), (RIGHT_QUARTER,meas2), (255, 0, 0), 6)           # Draw a line to show the end of the scanning region.
+        cv2.line(dryFrame, (LEFT_QUARTER,meas3), (RIGHT_QUARTER,meas3), (0, 130, 0), 6)           # Draw a line to show the end of the scanning region.
         cv2.imshow('Dry Device Edited', dryFrame)                                                   # Print a color frame to show the pixels being measured.
         cv2.imshow('Dry Device Binary', dryThresh)                                                  # Print the binary thresholded image for comparison.
         print("ScanRangeLength: ",len(scan_range), " Offset: ",offset,"ColumnScanLength: ",len(column_scan))
         cv2.waitKey(0)                                                                              # Wait for a key press from the user.
 
 
-    yShiftData = np.loadtxt('yshift500to12450.txt')                                                 # Load the vertical shift data for each frame.
-    yShiftData.tolist()                                                                             # Convert from numpy array to list.
-    xShiftData = np.loadtxt('xshift500to12450.txt')                                                 # Load the horizontal shift data for each frame.
-    xShiftData.tolist()                                                                             # Convert from numpy array to list.
+    yShiftData = np.loadtxt('yshift500to12450.txt') 
+    # np.append(yShiftData,yShiftData[len(yShiftData)-1])
+    yShiftData.tolist()
+    xShiftData = np.loadtxt('xshift500to12450.txt')
+    # np.append(xShiftData,xShiftData[len(xShiftData)-1])
+    xShiftData.tolist()
+    rawMSEData = np.loadtxt('MinimumMSE500to12450.txt')
+    # np.append(rawMSEData,rawMSEData[len(rawMSEData)-1])
+    rawMSEData.tolist()
+
     maxVert = yShiftData[0]                                                                         # The vertical coordinate at frame 0.
     minVert = yShiftData[len(yShiftData)-1]                                                         # The vertical coordinate at the end of the video.
     totalVertShift = maxVert - minVert                                                              # The total shift is the difference between vertical coordinates.
-    print("minVert: ",minVert," maxVert: ",maxVert," totalVertShift: ",totalVertShift)              # Print out the values
-
-    row_scan_shifted = []                                                                           # Initialize lists to hold the shifted dry edge of the device.
-    column_scan_shifted = []
+    print("minVert: ",minVert," maxVert: ",maxVert," totalVertShift: ",totalVertShift)    
+    i = 500
+    print("i: ",i,"yShift: ",yShiftData[i]," xShift: ",xShiftData[i]," rawMSEData: ", rawMSEData[i])
+    i = 2500
+    print("i: ",i,"yShift: ",yShiftData[i]," xShift: ",xShiftData[i]," rawMSEData: ", rawMSEData[i])
+    i = 7500
+    print("i: ",i,"yShift: ",yShiftData[i]," xShift: ",xShiftData[i]," rawMSEData: ", rawMSEData[i])
+    i = 10000
+    print("i: ",i,"yShift: ",yShiftData[i]," xShift: ",xShiftData[i]," rawMSEData: ", rawMSEData[i])
 
     # This block of code is for scanning the frames of the video and comparing with the dry device.
-    actualStartingFrame = 500                                                                       # The frame where we begin measuring
-    count = actualStartingFrame                                                                     # Track the frame of the video that is being analyzed with count.
-    scanTolerance = 25                                                                              # How wide the region is that we scan for film depth based on the dry location.
-    camera.set(cv2.CAP_PROP_POS_FRAMES, actualStartingFrame)                                        # Set the frame to the starting frame.
+    actualStartingFrame = 500
+    count = actualStartingFrame                                                                           # Track the frame of the video that is being analyzed.  
+    scanTolerance = 30         
+    scanToleranceLarge = 650                                                                     # How far left and right of a coordinate we will scan.
+    mseRelative = 1063888.25                                                                        # Many arbitrary scans were taken during tracking, and the mean value was this.
+    camera.set(cv2.CAP_PROP_POS_FRAMES, actualStartingFrame)                                              # Set the frame to the starting point
     while True:                                                                                     # Keep looping here until 'q' is pressed or the video is complete.
-        measurements = []                                                                           # List holds the measurements of the scan.
-        measurements.clear()                                                                        # Clear the lists every new frame
+        measurements1 = []                                                                          # List holds the measurements of the scan for measurement 1.
+        measurements2 = []                                                                          # For measurement 2.
+        measurements3 = []                                                                      # List holds the measurements of the scan for measurement 1.
+        row_scan_shifted = []                                                                           # Initialize lists to hold the shifted dry edge of the device.
+        column_scan_shifted = []
+        measurements1.clear()                                                                       # Reset the first list.
+        measurements2.clear()                                                                       # Reset the second list.   
+        measurements3.clear() 
         row_scan_shifted.clear()                                                    
         column_scan_shifted.clear()
         count = count + 1                                                                           # Frame counter.
         ret, frame = camera.read()                                                                  # Read a frame.
 
+        mseRelativeList.append(rawMSEData[count-actualStartingFrame-1]/mseRelative)
 
-        if ((count == actualStartingFrame + 1)):# or (count % 500 == 0)):                           # Every 500 pixels and at the beginning of the video, set the threshold value again.
-            wetThreshVal = findThreshValue(VIDEO,frame,videoFilename,750,800,410,500,0,500,550,410,500) # Call the findThreshValue function with specfic regions.   
-            if (showWet == SHOW):                                                                   # If showWet is true.
-                print("Wet Threshold Value: ", wetThreshVal)                                        # Print the threshold value we found.
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)                                              # Turn it gray.
-        ret, thresh = cv2.threshold(gray, wetThreshVal, 255, cv2.THRESH_BINARY)                     # Binary thresholding using a value between 0 and 255 to convert all pixels to high or low.
-        cv2.imshow('Binary Threshold', thresh)                                                      # Draw the result - this is the video playing.
-        y = 0                                                                                       # Reset y to zero every frame.
+        if ((count == actualStartingFrame + 1)):# or (count % 500 == 0)):                                    # Every 500 pixels and at the beginning of the video, set the threshold value again.
+            wetThreshVal = findThreshValue(VIDEO,frame,videoFilename,750,800,410,500,0,500,550,410,500)   
+            if (showWet == SHOW):                                                                       
+                print("Wet Threshold Value: ", wetThreshVal)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)                                              # turn it gray
+        ret, thresh = cv2.threshold(gray, wetThreshVal, 255, cv2.THRESH_BINARY)                     # binary thresholding 127 and 255 are the standard values used
+        cv2.imshow('Binary Threshold', thresh)                                                      # draw the result - this is the video playing
+
+        
+        # yscan1 = int(yShiftData[count-actualStartingFrame] - 175)
+        # yscan1 = int(yShiftData[count-actualStartingFrame-1] - 240)
+        # yscan2 = int(yShiftData[count-actualStartingFrame-1] - 150)
+        # yscan3 = int(yShiftData[count-actualStartingFrame-1] - 50)
+
+        
+
+        y1 = 500-175
+        y2 = 500 - 150
+        y3 = 500 + 350                                                                                       # Reset y to zero every frame.
         vertShift = int(500 - yShiftData[count-actualStartingFrame-1])                              # Every frame has the vertical shift accounted for given the data found through tracking.
         localMaxVert = int(yShiftData[count-actualStartingFrame-1])                                 # Each frame will have a different vertical coordinate.
         vertDifference = int(localMaxVert - minVert)                                                # The difference between the vertical coordinate of each frame and the final frame.
         xshift = int(6 - xShiftData[count - actualStartingFrame - 1])                               # Horizontal shift for each frame.
+        # for j in range(0,20):                                                                 # Scan a specified height (eg 20 pixels tall).
         for x in range(len(column_scan)):                                                           # For the length of the scanning list plot each coordinate with a blue pixel
             column_scan_shifted.append(column_scan[x]-xshift)                                       # Shift the columns by the horizontal shift loaded.
             row_scan_shifted.append(scan_range[x]+vertDifference)                                   # Shift the rows by the vertical shift loaded.
             cv2.line(frame, (column_scan_shifted[x],row_scan_shifted[x]), (column_scan_shifted[x],row_scan_shifted[x]), (0, 255, 0), 1)
-        for y1 in range(260,450):                                                                   # Vertical scanning range.
-            y = y1 - vertDifference - offset                                                        # Each y1 in the vertical scanning range is adjusted by the current frames vertical shift.
-            xcoordinate = column_scan_shifted[y1-vertShift-vertDifference]                          # x coordinate for the dry edge of the device.
-            for x in range(xcoordinate - scanTolerance, xcoordinate + scanTolerance):               # Horizontal scanning region using the scanTolerance.
-                px = thresh[y1-vertShift,x]                                                         # Scanning pixel for the wet device. 
-                pxplusone = thresh[y1-vertShift,x+1]                                                # Scanning pixel one ahead for the wet device.
-                if px == WHITE and pxplusone == BLACK:                                              # If the scanning pixel is white and the pixel to the right is black.
-                    # print((xcoordinate-xshift-(x+1))*scalebar)                                      # Printout.
-                    measurements.append((xcoordinate - (x+1))*scalebar)                    # The measurement is the difference between the dry edge and the wet edge with the shift taken into account.
-                    cv2.rectangle(frame,(x+1,y1-vertShift),(x+1,y1-vertShift),(0,0,255),1)                  # Draw a rectangle to show the vertical scanning region.
-                    cv2.rectangle(frame,(xcoordinate,y1-vertShift),(xcoordinate,y1-vertShift),(255,0,0),1)                  # Draw a rectangle to show the vertical scanning region.
-                    break                                                                           # If we find the wet edge of the device, leave the horizontal scan.
-        print("y: ",y," vertDifference: ",vertDifference," vertShift: ", vertShift," xshift: ",xshift)
-        cv2.rectangle(frame,(600,y1-vertShift),(800,y1-vertShift-190),(0,0,255),1)                  # Draw a rectangle to show the vertical scanning region.
-        cv2.rectangle(frame,(600,260-64),(800,450-64),(0,255,0),1)                                  # Draw a rectangle to show the vertical scanning region.
-        cv2.imshow('Original', frame)                                                               # Draw the result.
-        cv2.imshow('Dry',dryFrame)                                                                  
-        
-        xaxis = np.array(measurements)                                                              # The xaxis for our graphs is the film depth.
-        yaxis = np.arange(260,450)                                                                  # The yaxis is the points between our vertical scan from row 260 to row 450.
-        fig = plt.figure(1)                                                                         # Initializing the figure.
-        ax = fig.add_subplot(111)                                                                   # Create a figure that can hold subplots but give it just one figure (111 equates to number of figures, row, column)
-        redline, = ax.plot(xaxis, yaxis, 'b')                                                       # Plot the xaxis and yaxis with a blue line.
-        ax.set_ylabel("Vertical Coordinate",fontsize = 24)                                          # Set axis and plot labels.
-        ax.set_xlabel("Film Thickness (um)",fontsize = 24)
-        ax.set_title("Film Depth Along Widest Region of Device",fontsize = 28)
-        plt.show()                                                                                  # Show plot, waits for input 'q' from user.
 
-        # The following code jumps to different portions of the video
-        if count == 503:    
+        xcoordinate1 = column_scan_shifted[y1-vertShift-vertDifference]                                          # x coordinate or the column of the edge of the dry device.
+        xcoordinate2 = column_scan_shifted[y1-vertShift-vertDifference]
+        xcoordinate3 = column_scan_shifted[y1-vertShift-vertDifference]
+        for x in range(xcoordinate1 - scanTolerance, xcoordinate1 + scanTolerance):             # Scan in front of the device and a little behind, in case of noise.
+            px1 = thresh[y1-vertShift, x]                                                       # Scanning location, where the coordinate is (y,x), it is reversed which is confusing.
+            pxplusone1 = thresh[y1-vertShift, x + 1]                                            # Look one pixel ahead of scanning location.
+            if px1 == WHITE and pxplusone1 == BLACK:                                            # If the scanning location is black and the next pixel is white
+                film1.append((xcoordinate1 - (x + 1))*scalebar)                                   # Save the difference of the dry column and wet column (thickness of film in pixels).
+                break
+        for x in range(xcoordinate2 - scanTolerance, xcoordinate2 + scanTolerance):             # Just like measurement1.      
+            px2 = thresh[y2-vertShift, x]                       
+            pxplusone2 = thresh[y2-vertShift, x + 1]            
+            if px2 == WHITE and pxplusone2 == BLACK:                    
+                film2.append((xcoordinate2 - (x + 1))*scalebar)
+                break
+        for x in range(xcoordinate3 - scanToleranceLarge, xcoordinate3 + scanTolerance):        # Just like measurement 1, except the scanning region is a little larger for a measurement at the neck.
+            px3 = thresh[y3-vertShift, x]                       
+            pxplusone3 = thresh[y3-vertShift, x + 1]            
+            if px3 == WHITE and pxplusone3 == BLACK:                    
+                # film3.append((xcoordinate3 - (x + 1))*scalebar)   
+                break
+        # print("length of measurements1: ", len(measurements1))
+        # for x in range(len(measurements1)):                                                         # For all of the measurements in meas1.
+        #     measure_sum1 = measure_sum1 + measurements1[x]   
+        # for x in range(len(measurements2)):                                                         
+        #     measure_sum2 = measure_sum2 + measurements2[x]                                          
+        # for x in range(len(measurements3)):
+        #     measure_sum3 = measure_sum3 + measurements3[x]                                          # Sum each measurement in the list
+        # if len(measurements1) != 0:                                                                 # If the measurement list actually has values
+        #     measure_avg1 = measure_sum1 / len(measurements1)                                        # Take the average by dividing the sum by the number of measurements.
+        #     microns1 = measure_avg1 * scalebar                                                      # Convert the pixel depth of film to microns using the scalebar found previously.
+        #     film1.append(microns1 + (xShiftData[count-actualStartingFrame-1]*scalebar))                                                                  # Add each frame's measurement to a list called film.                                                               
+        # if len(measurements2) != 0:                                                                 
+        #     measure_avg2 = measure_sum2 / len(measurements2)                                        
+        #     microns2 = measure_avg2 * scalebar                                                      
+        #     film2.append(microns2 + (xShiftData[count-actualStartingFrame-1]*scalebar))                                                                  
+        # if len(measurements3) != 0:                                                                 
+        #     measure_avg3 = measure_sum3 / len(measurements3)                                        
+        #     microns3 = measure_avg3 * scalebar                                                      
+        #     film3.append(microns3+(xShiftData[count-actualStartingFrame-1]*scalebar))   
+
+        # print(yscan1,yscan2,yscan3)
+        cv2.rectangle(frame,(400,y1-vertShift),(900,y1-vertShift),(0,0,255),1)
+        cv2.rectangle(frame,(400,y2-vertShift),(900,y2-vertShift),(255,0,0),1)
+        cv2.rectangle(frame,(400,y3-vertShift),(900,y3-vertShift),(0,255,0),1)
+        cv2.imshow('Original', frame)                                                               # Draw the result.
+                    
+        
+        if count == 550:
             count = 1000
             camera.set(cv2.CAP_PROP_POS_FRAMES, 1000) 
-        if count == 1003:
+        if count == 1050:
             count = 1500
             camera.set(cv2.CAP_PROP_POS_FRAMES, 1500)   
-        if count == 1503:
+        if count == 1550:
             count = 2000
             camera.set(cv2.CAP_PROP_POS_FRAMES, 2000)     
-        if count == 2003:   
+        if count == 2050:   
             count = 2500
-            camera.set(cv2.CAP_PROP_POS_FRAMES, 2500)                                         
-        if count == 2503:
+            camera.set(cv2.CAP_PROP_POS_FRAMES, 2500)                                         # Set the frame to the starting point
+        if count == 2550:
             count = 3000
             camera.set(cv2.CAP_PROP_POS_FRAMES, 3000)
-        if count == 3003:
+        if count == 3050:
             count = 3500
             camera.set(cv2.CAP_PROP_POS_FRAMES, 3500)   
-        if count == 3503:
+        if count == 3550:
             count = 4000
             camera.set(cv2.CAP_PROP_POS_FRAMES, 4000)     
-        if count == 4003:   
+        if count == 4050:   
             count = 4500
-            camera.set(cv2.CAP_PROP_POS_FRAMES, 4500)                                         
-        if count == 4503:
+            camera.set(cv2.CAP_PROP_POS_FRAMES, 4500)                                         # Set the frame to the starting point
+        if count == 4550:
             count = 5000
-            camera.set(cv2.CAP_PROP_POS_FRAMES, 5000)                                                  
-        if count == 5003:   
+            camera.set(cv2.CAP_PROP_POS_FRAMES, 5000)                                                  # Set the frame to the starting point
+        if count == 5050:   
             count = 5500
-            camera.set(cv2.CAP_PROP_POS_FRAMES, 5500)                                         
-        if count == 5503:
+            camera.set(cv2.CAP_PROP_POS_FRAMES, 5500)                                         # Set the frame to the starting point
+        if count == 5550:
             count = 6000
             camera.set(cv2.CAP_PROP_POS_FRAMES, 6000)
-        if count == 6003:
+        if count == 6050:
             count = 6500
             camera.set(cv2.CAP_PROP_POS_FRAMES, 6500)   
-        if count == 6503:
+        if count == 6550:
             count = 7000
             camera.set(cv2.CAP_PROP_POS_FRAMES, 7000)     
-        if count == 7003:   
+        if count == 7050:   
             count = 7500
-            camera.set(cv2.CAP_PROP_POS_FRAMES, 7500)                                         
-        if count == 7503:
+            camera.set(cv2.CAP_PROP_POS_FRAMES, 7500)                                         # Set the frame to the starting point
+        if count == 7550:
             count = 8000
             camera.set(cv2.CAP_PROP_POS_FRAMES, 8000) 
-        if count == 8003:   
+        if count == 8050:   
             count = 8500
-            camera.set(cv2.CAP_PROP_POS_FRAMES, 8500)                                         
-        if count == 8503:
+            camera.set(cv2.CAP_PROP_POS_FRAMES, 8500)                                         # Set the frame to the starting point
+        if count == 8550:
             count = 9000
             camera.set(cv2.CAP_PROP_POS_FRAMES, 9000)
-        if count == 9003:
+        if count == 9050:
             count = 9500
             camera.set(cv2.CAP_PROP_POS_FRAMES, 9500)   
-        if count == 9503:
+        if count == 10550:
+            count = 10000
+            camera.set(cv2.CAP_PROP_POS_FRAMES, 10000)     
+        if count == 10050:   
+            count = 10500
+            camera.set(cv2.CAP_PROP_POS_FRAMES, 10500)                                         # Set the frame to the starting point
+        if count == 10550:
             count = 11000
-            camera.set(cv2.CAP_PROP_POS_FRAMES, 11000)     
-        if count == 11003:   
+            camera.set(cv2.CAP_PROP_POS_FRAMES, 11000)
+        if count == 11050:   
             count = 11500
-            camera.set(cv2.CAP_PROP_POS_FRAMES, 10500)                                         
-        if count == 11503:
-            count = 12447
-            camera.set(cv2.CAP_PROP_POS_FRAMES, 12447)                                         
-        if count == 12450:                                                                          # Once we reach the end of the portion of video we want to analyze
+            camera.set(cv2.CAP_PROP_POS_FRAMES, 11500)                                         # Set the frame to the starting point
+        if count == 11550:
+            count = 12000
+            camera.set(cv2.CAP_PROP_POS_FRAMES, 12000) 
+        if count == 12450:                                                    # Once we reach the end of the portion of video we want to analyze
             cv2.destroyAllWindows()                                                                 # Clear all windows.
             print('END OF THE VIDEO')   
             print('Count',count)                                                            
@@ -310,5 +370,78 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
             print('Count',count)
             break
 
-filmStablity("FiberFrameJuly20.jpg","Dry.jpg","WetVidJuly20.avi",SHOW,SHOW,SHOW)     # Call the filmStability function by inputing the correct files.
+print(film1)
+filmStablity("FiberFrameJuly20.jpg","Dry.jpg","WetVidJuly20.avi",0,0,SHOW)     # Call the filmStability function by inputing the correct files.
 
+print(len(film1),len(film2),len(film3))
+
+
+data1 = np.array(film1)                                                                             # Convert the python list to a numpy array.
+data2 = np.array(film2)
+# data3 = np.array(film3)
+mseRelativeData = np.array(mseRelativeList)
+
+average_over = 9
+averaged_microns1 = []   # intialize a list to store the averaged values
+averaged_microns2 = []
+averaged_microns3 = []
+
+counter = 0                                                 # int for counting the number of frames
+summation = 0                                               # int that takes the temporary sums
+for x in range(int(len(film1)/average_over)*average_over):        # if there are 15789 frames analyzed, and the average is 10, this rounds it down. e.g. 15780
+    counter = counter + 1                                           # a counter
+    summation = film1[x] + summation                                 # a summation
+    if counter == average_over:                                     # when the counter reaches the averaging amount
+        counter = 0                                                 # reset the counter
+        averaged_microns1.append(summation/average_over)             # store the averaged value
+        summation = 0                                               # reset the sum for the next batch of x measurements
+counter = 0                                                 # int for counting the number of frames
+summation = 0                                               # int that takes the temporary sums
+for x in range(int(len(film2)/average_over)*average_over):        # if there are 15789 frames analyzed, and the average is 10, this rounds it down. e.g. 15780
+    counter = counter + 1                                           # a counter
+    summation = film2[x] + summation                                 # a summation
+    if counter == average_over:                                     # when the counter reaches the averaging amount
+        counter = 0                                                 # reset the counter
+        averaged_microns2.append(summation/average_over)             # store the averaged value
+        summation = 0  
+counter = 0                                                 # int for counting the number of frames
+summation = 0                                               # int that takes the temporary sums
+# for x in range(int(len(film3)/average_over)*average_over):        # if there are 15789 frames analyzed, and the average is 10, this rounds it down. e.g. 15780
+    # counter = counter + 1                                           # a counter
+    # summation = film3[x] + summation                                 # a summation
+    # if counter == average_over:                                     # when the counter reaches the averaging amount
+    #     counter = 0                                                 # reset the counter
+    #     averaged_microns3.append(summation/average_over)             # store the averaged value
+    #     summation = 0  
+
+fps = 2                                # 10 frames per second based on the THOR documentation
+seconds = 60
+
+time1 = np.arange(len(film1))    # length of the averaged values
+fig = plt.figure(1)
+
+
+#Same graph option
+
+ax1 = fig.add_subplot(111)
+redline, = ax1.plot(time1, film1, 'r.')
+blueline, = ax1.plot(time1, film2, 'b.')
+# greenline, = ax1.plot(time1, film3, 'g.')
+
+
+ticks_x1 = ticker.FuncFormatter(lambda time1, pos: '{0:g}'.format(time1/(seconds*fps))) #adjust the x-axis to be the correct time in minutes
+ax1.xaxis.set_major_formatter(ticks_x1)
+ax1.set_xlabel("Time in Minutes",fontsize = 24)
+ax1.set_ylabel("Film Thickness (um)",fontsize = 24)
+ax1.set_title("Stability of Film Thickness Over Time Multiple Locations",fontsize = 28)
+# ax1.legend((redline,blueline,greenline),('Middle of Device','Top of Device','Bottom of Device'),loc = 1,fontsize = 18)
+plt.show()                                                                         # Show the plot. 'q' will exit from it.
+
+header = "Film Depth in Microns Data 1"
+np.savetxt('data1.dat',data1,header = header)
+header = "Film Depth in Microns Data 2"
+np.savetxt('data2.dat',data2,header = header)
+header = "Film Depth in Microns Data 3"
+# np.savetxt('data3.dat',data3,header = header)
+header = "Relative MSE Values to an Arbitrary Scans Elsewhere on Device"
+np.savetxt('RelativeMSE.dat',mseRelativeData,header = header)
