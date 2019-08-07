@@ -1,6 +1,9 @@
+# Using vertical and horizontal shift data the dry edge will follow the wet edge throughout PEGDA resin expansion.
+# Each frame the film depth will be taken at each pixel, and a plot will be created to show the film depth throughout tracking.
+
+
 import numpy as np
 import cv2
-#import matplotlib.pyplot as plt
 import pylab as plt
 import matplotlib.ticker as ticker
 
@@ -11,14 +14,21 @@ LEFT = 1                                                                        
 RIGHT = 1279                                                                                        # Rightmost column on the screen.
 TOP = 1                                                                                             # Top row on the screen.
 BOTTOM = 1023                                                                                       # Bottom row on the screen. 
-LEFT_QUARTER = 400                                                                                  # The column value for the left quarter of the screen. We will scan between the two quartiles.
-RIGHT_QUARTER = 1000                                                                                # The column value for the right quarter of the screen.
+LEFT_SIDE = 400                                                                                     # The column value for the left quarter of the screen. We will scan between the two quartiles.
+RIGHT_SIDE = 1000                                                                                   # The column value for the right quarter of the screen.
 SHOW = 1                                                                                            # If the show variable (eg showFiber) is one, display more detail.
-column_scan = []                                                                                    # List used as a global variable to store the column location during scans.
+HIDE = 0                                                                                            # If the show variable is zero, refrain from displaying screens.
+MEAN = 2                                                                                            # For finding the mean between two measurements.
+IMAGE = 0                                                                                           # Value for when an image is the file input for the function.
+VIDEO = 1                                                                                           # Value for a video.
+NO_FRAME = 0                                                                                        # When using an image and no frame is specified.
+FULL_HUE = 255                                                                                  
+NO_HUE = 0
+column_scan = []                                                                                    # List used as a global variable to store the column location of dry device during scans.
 film1 = []                                                                                          # Lists to hold the film thickness of one frame averaged.
 film2 = []   
 film3 = []   
-mseRawDataList = []
+mseRawDataList = []                                                                                 # Lists to hold data relevant to the tracking
 mseRelativeList = []
 yshiftList = []
 xshiftList = []
@@ -33,17 +43,17 @@ def FiberWidthTest(frame, show):
     fiber_width = 0                                                                                 # Number of pixels.
     width_sum = 0                                                                                   # Sum of the width measurements.
 
-    for j in range (LEFT,RIGHT):                                                                    # Scan all columns from left to right.
-        for i in range(TOP,BOTTOM):                                                                 # Scan all rows fromt top to bottom.
-            px = frame[i,j]                                                                         # Save the pixel value, where [y,x] since it is inverted.
-            if i != BOTTOM:                                                                         # If the for loop is not on the last pixel, save the upcoming pixel.
-                pxplusone = frame[i+1, j]                                                           # Save the pixel to the right of our current position in the scan
+    for i in range (LEFT,RIGHT):                                                                    # Scan all columns from left to right.
+        for j in range(TOP,BOTTOM):                                                                 # Scan all rows fromt top to bottom.
+            px = frame[j,i]                                                                         # Save the pixel value, where [y,x] since it is inverted.
+            if j != BOTTOM:                                                                         # If the for loop is not on the last pixel, save the upcoming pixel.
+                pxplusone = frame[j+1, i]                                                           # Save the pixel to the right of our current position in the scan
             if px == WHITE:                                                                         # If we are on a white pixel.
                 if pxplusone == BLACK:                                                              # And the next one is black.
-                    start.append(i + 1)                                                             # Add the pixel location to the 'start' list.
+                    start.append(j + 1)                                                             # Add the pixel location to the 'start' list.
             if px == BLACK:                                                                         # If the for loop is on a black pixel,
                 if pxplusone == WHITE:                                                              # and the next is white,
-                    end.append(i)                                                                   # add the value of the white pixel to 'end' list.
+                    end.append(j)                                                                   # add the value of the white pixel to 'end' list.
         width.append(end[len(end)-1]-start[0])                                                      # Finds the width by taking the last value from the end list and the first value of the start list, then appends the difference.
         if show == 2:                                                                               # If the show input var is 2:
             print ('Fiber Width: ', width)                                                          # print to see the different values measured.
@@ -67,34 +77,28 @@ def ScanningRegion(frame,show):
     row = []                                                                                        # Initialize a list to store which row we are observing.
     global column_scan                                                                              # Include the column_scan global list in the scope of this function.
 
-    # we scan from left to right across each row, then move downwards looking for the column that has the first black pixel
-    for i in range(TOP,BOTTOM):                                                                     # Iterate between the top and bottom of the screen.
-        for j in range(LEFT_QUARTER,RIGHT_QUARTER):                                                 # Iterate between halfway on the screen to the right quarter of the screen, which should include the device.
-            px = frame[i,j]                                                                         # Pixels are [row, column] so basically [y, x], yes it's inverted.
-            if j != (RIGHT_QUARTER - 1):                                                            # If we are not on the last column.
-                pxplusone = frame[i,j+1]                                                            # Look ahead at the upcoming pixel in the scan, store it in pxplusone.
+    # We scan from left to right across each row looking for the column that has the first black pixel (edge of device) then move downwards to other rows
+    for j in range(TOP,BOTTOM):                                                                     # Iterate between the top and bottom of the screen.
+        for i in range(LEFT_SIDE,RIGHT_SIDE):                                                       # Iterate from left to right across the majority of the screen, which should include the device.
+            px = frame[j,i]                                                                         # Pixels are [row, column] so basically [y, x], yes it's inverted.
+            if j != (RIGHT_SIDE - 1):                                                               # If we are not on the last column.
+                pxplusone = frame[j,i+1]                                                            # Look ahead at the upcoming pixel in the scan, store it in pxplusone.
             if px == WHITE and pxplusone == BLACK:                                                  # If current pixel in scan is white and upcoming is black.
-                column_scan.append(j+1)                                                             # Save the black pixel column location (index value plus one).
-                row.append(i)                                                                       # Append the row that we found the edge.
+                column_scan.append(i+1)                                                             # Save the black pixel column location (index value plus one).
+                row.append(j)                                                                       # Append the row that we found the edge.
                 break
     return row
-
 
 
 # Function that averages the grayscale values (between 0 and 255) for each pixel in the two scanning regions
 # which are chosen through the input parameters. The midpoint of those two averages will be the value that will
 # be used for thresholding.
 def findThreshValue(imageOrVideo,frameFromVideo,filename,rectOneLeft_x,rectOneRight_x,rectOneTop_y,rectOneBot_y,show,rectTwoLeft_x,rectTwoRight_x,rectTwoTop_y,rectTwoBot_y):
-    MEAN = 2                                                                                        # For finding the mean between two measurements.
-    IMAGE = 0
-    VIDEO = 1
     if (imageOrVideo == IMAGE):                                                                     # If the frame is a separate .jpg or .png file
         frame = cv2.imread(filename,1)                                                              # Read the image with the filename offered in the parameter.
     elif (imageOrVideo == VIDEO):                                                                   # Else if the frame is passed in from a video
         frame = frameFromVideo                                                                      # Save the frame to the same local variable that would have been used with the .jpg
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)                                                  # turn it gray
-    # cv2.rectangle(frame,(rectOneLeft_x,rectOneTop_y),(rectOneRight_x,rectOneBot_y),(0,0,255),1)     # Draws a blue rectangle
-    # cv2.rectangle(frame,(rectTwoLeft_x,rectTwoTop_y),(rectTwoRight_x,rectTwoBot_y),(0,0,255),1)     # To show the scanning regions.
     pixels = []                                                                                     # Initialize a list to hold the values of the gray image pixels.
     for i in range(rectOneLeft_x,rectOneRight_x):                                                   # Cycle through the rows of allotted region.
         for j in range(rectOneTop_y, rectOneBot_y):                                                 # Cycle through the columns.
@@ -113,6 +117,8 @@ def findThreshValue(imageOrVideo,frameFromVideo,filename,rectOneLeft_x,rectOneRi
     backgroundAverage = sumOfPixelValues / len(pixels)                                              # Average over the number of measurements.
     thresholdValue = (foregroundAverage + backgroundAverage) / MEAN                                 # Find the mean of the two average pixel values.
     if (show == SHOW):                                                                              # If the show variable is high.  
+        cv2.rectangle(frame,(rectOneLeft_x,rectOneTop_y),(rectOneRight_x,rectOneBot_y),(0,0,255),1) # Draws a blue rectangle
+        cv2.rectangle(frame,(rectTwoLeft_x,rectTwoTop_y),(rectTwoRight_x,rectTwoBot_y),(0,0,255),1) # To show the scanning regions.
         cv2.imshow('Original with Scan Regions', frame)                                             # Show the image with the scan regions.
         print("Threshold value for ", filename, " :", thresholdValue)                               # Output the threshold value calculated.
         cv2.waitKey(0)                                                                              # Wait for user key press.
@@ -131,8 +137,8 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
     if showFiber == SHOW:                                                                           # If the parameter showFiber is 1.
         cv2.imshow('Fiber Thresholded', thresh)                                                     # Show the thresholded fiber.
         cv2.imshow('Fiber Original', fiberFrame)                                                    # Show the original image of the fiber.
-    # scalebar = FiberWidthTest(thresh, showFiber)                                                    # Call the FiberWidthTest function to find the pixel/micron scale.
-    scalebar = .1732492337                                                                          # To find a new scalebar uncomment the line above.
+    scalebar = FiberWidthTest(thresh, showFiber)                                                    # Call the FiberWidthTest function to find the pixel/micron scale.
+    # scalebar = .1732492337                                                                        # To find a new scalebar uncomment the line above.
     print('SCALEBAR: ', scalebar)                                                                   # Print out the scale found above.
     cv2.waitKey(0)                                                                                  # Wait for a key press from the user.
     # This block of code is for finding the edge of the dry device.
@@ -142,23 +148,19 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
     endOfVideo = int(camera.get(cv2.CAP_PROP_FRAME_COUNT))                                          # Finds the number of frames in the video.
     print('NUMBER OF FRAMES: ', endOfVideo)                                                         # Print the number of frames.
     camera.set(cv2.CAP_PROP_POS_FRAMES, endOfVideo-dryFrameJumpback)                                # Set the frame to the end of the video if using water (it should have evaporated)
-    ret, dryFrame = camera.read()                                                                 # Set the dryFrame by reading the camera at the designated frame.
-    # dryFrame = cv2.imread(dryFilename,1)                                                            # If we are using a separate image (.jpg or .png) set it here.
+    ret, dryFrame = camera.read()                                                                   # Set the dryFrame by reading the camera at the designated frame.
     dryThreshVal = findThreshValue(VIDEO,dryFrame,dryFilename,750,800,410,500,0,500,550,410,500)   
-        # Find the thresholding value, tell whether it is an IMAGE or VIDEO, send the frame if its a video, send the filename if its an image, then put the coordinates for the two boxes.
-    grayed = cv2.cvtColor(dryFrame, cv2.COLOR_BGR2GRAY)                                               # Turn it gray.
-    ret, dryThresh = cv2.threshold(grayed, dryThreshVal, 255, cv2.THRESH_BINARY)                      # Binary threshold the grayscale image with the value we found.
+    # Find the thresholding value, tell whether it is an IMAGE or VIDEO, send the frame if its a video, send the filename if its an image, then put the coordinates for the two boxes.
+    grayed = cv2.cvtColor(dryFrame, cv2.COLOR_BGR2GRAY)                                             # Turn it gray.
+    ret, dryThresh = cv2.threshold(grayed, dryThreshVal, 255, cv2.THRESH_BINARY)                    # Binary threshold the grayscale image with the value we found.
     scan_range = ScanningRegion(dryThresh, showDry)                                                 # Calls a function to find the scanning range, changing the global list column_scan and the local list scan_range.
-    offset = BOTTOM + 1 - len(scan_range)                                                               # The offset is important if the top of the device is visible and no edge could be found at the top of the screen.
+    offset = BOTTOM + 1 - len(scan_range)                                                           # The offset is important if the top of the device is visible and no edge could be found at the top of the screen.
     if showDry == SHOW:                                                                             # If the parameter showDry is 1.
-        camera.set(cv2.CAP_PROP_POS_FRAMES, endOfVideo-dryFrameJumpback)                                # Set the frame to the end of the video if using water (it should have evaporated)
-        ret, dryFrame = camera.read()                                                                 # Set the dryFrame by reading the camera at the designated frame.
+        camera.set(cv2.CAP_PROP_POS_FRAMES, endOfVideo-dryFrameJumpback)                            # Set the frame to the end of the video if using water (it should have evaporated)
+        ret, dryFrame = camera.read()                                                               # Set the dryFrame by reading the camera at the designated frame.
         for x in range(len(column_scan)):                                                           # For the length of the scanning list plot each coordinate with a blue pixel
             cv2.rectangle(dryFrame,(600,260-64),(800,450-64),(0,0,255),1)
             cv2.line(dryFrame, (column_scan[x],scan_range[x]), (column_scan[x],scan_range[x]), (178, 34, 34), 1)
-        # cv2.line(dryFrame, (LEFT_QUARTER,meas1), (RIGHT_QUARTER,meas1), (0, 0, 255), 6)           # Draw a line to show the start of the scanning region.
-        # cv2.line(dryFrame, (LEFT_QUARTER,meas2), (RIGHT_QUARTER,meas2), (255, 0, 0), 6)           # Draw a line to show the end of the scanning region.
-        # cv2.line(dryFrame, (LEFT_QUARTER,meas3), (RIGHT_QUARTER,meas3), (0, 130, 0), 6)           # Draw a line to show the end of the scanning region.
         cv2.imshow('Dry Device Edited', dryFrame)                                                   # Print a color frame to show the pixels being measured.
         cv2.imshow('Dry Device Binary', dryThresh)                                                  # Print the binary thresholded image for comparison.
         print("ScanRangeLength: ",len(scan_range), " Offset: ",offset,"ColumnScanLength: ",len(column_scan))
@@ -191,7 +193,7 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
         ret, frame = camera.read()                                                                  # Read a frame.
 
 
-        if ((count == actualStartingFrame + 1)):# or (count % 500 == 0)):                           # Every 500 pixels and at the beginning of the video, set the threshold value again.
+        if ((count == actualStartingFrame + 1)):                                                    # Every 500 pixels and at the beginning of the video, set the threshold value again.
             wetThreshVal = findThreshValue(VIDEO,frame,videoFilename,750,800,410,500,0,500,550,410,500) # Call the findThreshValue function with specfic regions.   
             if (showWet == SHOW):                                                                   # If showWet is true.
                 print("Wet Threshold Value: ", wetThreshVal)                                        # Print the threshold value we found.
@@ -214,10 +216,9 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
                 px = thresh[y1-vertShift,x]                                                         # Scanning pixel for the wet device. 
                 pxplusone = thresh[y1-vertShift,x+1]                                                # Scanning pixel one ahead for the wet device.
                 if px == WHITE and pxplusone == BLACK:                                              # If the scanning pixel is white and the pixel to the right is black.
-                    # print((xcoordinate-xshift-(x+1))*scalebar)                                      # Printout.
-                    measurements.append((xcoordinate - (x+1))*scalebar)                    # The measurement is the difference between the dry edge and the wet edge with the shift taken into account.
-                    cv2.rectangle(frame,(x+1,y1-vertShift),(x+1,y1-vertShift),(0,0,255),1)                  # Draw a rectangle to show the vertical scanning region.
-                    cv2.rectangle(frame,(xcoordinate,y1-vertShift),(xcoordinate,y1-vertShift),(255,0,0),1)                  # Draw a rectangle to show the vertical scanning region.
+                    measurements.append((xcoordinate - (x+1))*scalebar)                             # The measurement is the difference between the dry edge and the wet edge with the shift taken into account.
+                    cv2.rectangle(frame,(x+1,y1-vertShift),(x+1,y1-vertShift),(0,0,255),1)          # Draw a rectangle to show the vertical scanning region.
+                    cv2.rectangle(frame,(xcoordinate,y1-vertShift),(xcoordinate,y1-vertShift),(255,0,0),1)   # Draw a rectangle to show the vertical scanning region.
                     break                                                                           # If we find the wet edge of the device, leave the horizontal scan.
         print("y: ",y," vertDifference: ",vertDifference," vertShift: ", vertShift," xshift: ",xshift)
         cv2.rectangle(frame,(600,y1-vertShift),(800,y1-vertShift-190),(0,0,255),1)                  # Draw a rectangle to show the vertical scanning region.
@@ -310,5 +311,5 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
             print('Count',count)
             break
 
-filmStablity("FiberFrameJuly20.jpg","Dry.jpg","WetVidJuly20.avi",SHOW,SHOW,SHOW)     # Call the filmStability function by inputing the correct files.
+filmStablity("FiberFrameJuly20.jpg","Dry.jpg","WetVidJuly20.avi",SHOW,SHOW,SHOW)                    # Call the filmStability function by inputing the correct files.
 
