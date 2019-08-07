@@ -1,4 +1,5 @@
-#
+# Finds film depth at one pixel at three different points, plotting said points.
+# Using vertical and horizontal shift data the dry edge will follow the wet edge throughout PEGDA resin expansion.
 
 
 import numpy as np
