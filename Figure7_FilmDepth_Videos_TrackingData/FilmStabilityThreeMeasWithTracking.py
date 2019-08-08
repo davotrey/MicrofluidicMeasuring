@@ -163,9 +163,9 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
         ret, dryFrame = camera.read()                                                               # Set the dryFrame by reading the camera at the designated frame.
         for x in range(len(column_scan)):                                                           # For the length of the scanning list plot each coordinate with a blue pixel
             cv2.line(dryFrame, (column_scan[x],scan_range[x]), (column_scan[x],scan_range[x]), (178, 34, 34), 1)
-        cv2.line(dryFrame, (LEFT_SIDE,y1), (RIGHT_SIDE,y1), (NO_HUE, NO_HUE, FULL_HUE), 6)          # Draw a red line to show the start of the scanning region.
-        cv2.line(dryFrame, (LEFT_SIDE,y2), (RIGHT_SIDE,y2), (FULL_HUE, NO_HUE, NO_HUE), 6)          # Draw a blue line to show the end of the scanning region.
-        cv2.line(dryFrame, (LEFT_SIDE,y3), (RIGHT_SIDE,y3), (NO_HUE, 130, NO_HUE), 6)               # Draw a green line to show the end of the scanning region.
+        cv2.line(dryFrame, (LEFT_SIDE,y1-64), (RIGHT_SIDE,y1-64), (NO_HUE, NO_HUE, FULL_HUE), 6)          # Draw a red line to show the start of the scanning region.
+        cv2.line(dryFrame, (LEFT_SIDE,y2-64), (RIGHT_SIDE,y2-64), (FULL_HUE, NO_HUE, NO_HUE), 6)          # Draw a blue line to show the end of the scanning region.
+        cv2.line(dryFrame, (LEFT_SIDE,y3-64), (RIGHT_SIDE,y3-64), (NO_HUE, 130, NO_HUE), 6)               # Draw a green line to show the end of the scanning region.
         cv2.imshow('Dry Device Edited', dryFrame)                                                   # Print a color frame to show the pixels being measured.
         cv2.imshow('Dry Device Binary', dryThresh)                                                  # Print the binary thresholded image for comparison.
         cv2.waitKey(0)                                                                              # Wait for a key press from the user.
@@ -217,7 +217,8 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
         for x in range(len(column_scan)):                                                           # For the length of the scanning list plot each coordinate with a blue pixel
             column_scan_shifted.append(column_scan[x]-xshift)                                       # Shift the columns by the horizontal shift loaded.
             row_scan_shifted.append(scan_range[x]+vertDifference)                                   # Shift the rows by the vertical shift loaded.
-            cv2.line(frame, (column_scan_shifted[x],row_scan_shifted[x]), (column_scan_shifted[x],row_scan_shifted[x]), (0, 255, 0), 1)
+            if x > 50:
+                cv2.line(frame, (column_scan_shifted[x],row_scan_shifted[x]), (column_scan_shifted[x],row_scan_shifted[x]), (0, 255, 0), 1)
         xcoordinate1 = column_scan_shifted[y1-vertShift-vertDifference]                             # x coordinate or the column of the edge of the dry device.
         xcoordinate2 = column_scan_shifted[y2-vertShift-vertDifference]
         xcoordinate3 = column_scan_shifted[y3-vertShift-vertDifference]
@@ -246,7 +247,7 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
         cv2.rectangle(frame,(LEFT_SIDE,y2-vertShift-1),(RIGHT_SIDE,y2-vertShift+1),(FULL_HUE,NO_HUE,NO_HUE),1)  # Draw blue rectangle.
         cv2.rectangle(frame,(LEFT_SIDE,y3-vertShift-1),(RIGHT_SIDE,y3-vertShift+1),(NO_HUE,FULL_HUE,NO_HUE),1)  # Draw green rectangle.
         cv2.imshow('Original', frame)                                                               # Draw the result.
-                    
+
         if count == 12450:                                                                          # Once we reach the end of the portion of video we want to analyze
             cv2.destroyAllWindows()                                                                 # Clear all windows.
             print('END OF THE VIDEO')   
@@ -259,7 +260,7 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
             break
 
 print(film1)
-filmStablity("FiberFrameJuly20.jpg","Dry.jpg","WetVidJuly20.avi",0,0,SHOW)                          # Call the filmStability function by inputing the correct files.
+filmStablity("FiberFrameJuly20.jpg","Dry.jpg","WetVidJuly20.avi",HIDE,SHOW,SHOW)                          # Call the filmStability function by inputing the correct files.
 
 print(len(film1),len(film2),len(film3))
 
@@ -326,10 +327,8 @@ ax1.legend((redline,blueline,greenline),('Middle of Device','Top of Device','Bot
 plt.show()                                                                                          # Show the plot. 'q' will exit from it.
 
 header = "Film Depth in Microns Data 1"
-np.savetxt('data1.dat',data1,header = header)
+np.savetxt('TrackingSingledata1.dat',data1,header = header)
 header = "Film Depth in Microns Data 2"
-np.savetxt('data2.dat',data2,header = header)
+np.savetxt('TrackingSingledata2.dat',data2,header = header)
 header = "Film Depth in Microns Data 3"
-np.savetxt('data3.dat',data3,header = header)
-header = "Relative MSE Values to an Arbitrary Scans Elsewhere on Device"
-np.savetxt('RelativeMSE.dat',mseRelativeData,header = header)
+np.savetxt('TrackingSingledata3.dat',data3,header = header)

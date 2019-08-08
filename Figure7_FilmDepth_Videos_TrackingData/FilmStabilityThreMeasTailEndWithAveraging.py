@@ -127,9 +127,6 @@ def findThreshValue(imageOrVideo,frameFromVideo,filename,rectOneLeft_x,rectOneRi
 
 
 def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showWet):
-    meas1 = 300                                                                                     # This will be the row where we take our first measurement.
-    meas2 = 350                                                                                     # Currently the code supports three total measurements.
-    meas3 = 800                                                                                     # 
     IMAGE = 0                                                                                       # A flag that tells other functions if a file is an image or a video.
     VIDEO = 1
     # This block of code is for finding the width of the fiber.
@@ -164,9 +161,6 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
         ret, dryFrame = camera.read()                                                                 # Set the dryFrame by reading the camera at the designated frame.
         for x in range(len(column_scan)):                                                           # For the length of the scanning list plot each coordinate with a blue pixel
             cv2.line(dryFrame, (column_scan[x],scan_range[x]), (column_scan[x],scan_range[x]), (178, 34, 34), 1)
-        cv2.line(dryFrame, (LEFT_SIDE,meas1), (RIGHT_SIDE,meas1), (0, 0, 255), 6)           # Draw a line to show the start of the scanning region.
-        cv2.line(dryFrame, (LEFT_SIDE,meas2), (RIGHT_SIDE,meas2), (255, 0, 0), 6)           # Draw a line to show the end of the scanning region.
-        cv2.line(dryFrame, (LEFT_SIDE,meas3), (RIGHT_SIDE,meas3), (0, 130, 0), 6)           # Draw a line to show the end of the scanning region.
         cv2.imshow('Dry Device Edited', dryFrame)                                                   # Print a color frame to show the pixels being measured.
         cv2.imshow('Dry Device Binary', dryThresh)                                                  # Print the binary thresholded image for comparison.
         print("ScanRangeLength: ",len(scan_range), " Offset: ",offset,"ColumnScanLength: ",len(column_scan))
@@ -177,11 +171,18 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
     count = actualStartingFrame                                                                           # Track the frame of the video that is being analyzed.  
     scanTolerance = 30         
     scanToleranceLarge = 650                                                                     # How far left and right of a coordinate we will scan.
+    scanHeight = 9
     camera.set(cv2.CAP_PROP_POS_FRAMES, actualStartingFrame)                                              # Set the frame to the starting point
     while True:                                                                                     # Keep looping here until 'q' is pressed or the video is complete.
         measurements1 = []                                                                          # List holds the measurements of the scan for measurement 1.
         measurements2 = []                                                                          # For measurement 2.
-        measurements3 = []                                                                      # List holds the measurements of the scan for measurement 1.
+        measurements3 = []                                                                          # For measurement 3.
+        measure_sum1 = 0                                                                            # Variable to hold the sum of the list of measurements for measurement 1.
+        measure_sum2 = 0                                                                            # For measurement 2, resets after every frame.
+        measure_sum3 = 0                                                                            # For measurement 3.
+        measure_avg1 = 0                                                                            # Variable to hold the average value of depth in pixels for measurement 1.
+        measure_avg2 = 0                                                                            # For measurement 2, resets after every frame.
+        measure_avg3 = 0                                                                            # For measurement 3.
         measurements1.clear()                                                                       # Reset the first list.
         measurements2.clear()                                                                       # Reset the second list.   
         measurements3.clear() 
@@ -202,31 +203,48 @@ def filmStablity(fiberFilename,dryFilename,videoFilename,showFiber,showDry,showW
         for x in range(len(column_scan)):                                                           # For the length of the scanning list plot each coordinate with a blue pixel
             cv2.line(frame, (column_scan[x],scan_range[x]), (column_scan[x],scan_range[x]), (0, 255, 0), 1)
 
-        xcoordinate1 = column_scan[y1]                                          # x coordinate or the column of the edge of the dry device.
-        xcoordinate2 = column_scan[y2]
-        xcoordinate3 = column_scan[y3]
-        for x in range(xcoordinate1 - scanTolerance, xcoordinate1 + scanTolerance):             # Scan in front of the device and a little behind, in case of noise.
-            px1 = thresh[y1, x]                                                       # Scanning location, where the coordinate is (y,x), it is reversed which is confusing.
-            pxplusone1 = thresh[y1, x + 1]                                            # Look one pixel ahead of scanning location.
-            if px1 == WHITE and pxplusone1 == BLACK:                                            # If the scanning location is black and the next pixel is white
-                film1.append((xcoordinate1 - (x + 1))*scalebar)                                   # Save the difference of the dry column and wet column (thickness of film in pixels).
-                break
-        for x in range(xcoordinate2 - scanTolerance, xcoordinate2 + scanTolerance):             # Just like measurement1.      
-            px2 = thresh[y2, x]                       
-            pxplusone2 = thresh[y2, x + 1]            
-            if px2 == WHITE and pxplusone2 == BLACK:                    
-                film2.append((xcoordinate2 - (x + 1))*scalebar)
-                break
-        for x in range(xcoordinate3 - scanToleranceLarge, xcoordinate3 + scanTolerance):        # Just like measurement 1, except the scanning region is a little larger for a measurement at the neck.
-            px3 = thresh[y3, x]                       
-            pxplusone3 = thresh[y3, x + 1]            
-            if px3 == WHITE and pxplusone3 == BLACK:                    
-                film3.append((xcoordinate3 - (x + 1))*scalebar)   
-                # print("xcoordinate3: ",xcoordinate3," x: ",x," pixelDiff: ",xcoordinate3-x+1)
-                cv2.rectangle(frame,(x+1,y3-5),(x+1,y3),(255,0,0),1)                  # Draw a rectangle to show the vertical scanning region.
-                cv2.rectangle(frame,(xcoordinate3,y3-5),(xcoordinate3,y3),(0,0,255),1)                  # Draw a rectangle to show the vertical scanning region.
-                break
-
+        for vert in range(scanHeight):
+            y1 = y1 + vert
+            y2 = y2 + vert
+            y3 = y3 + vert
+            xcoordinate1 = column_scan[y1]                                          # x coordinate or the column of the edge of the dry device.
+            xcoordinate2 = column_scan[y2]
+            xcoordinate3 = column_scan[y3]
+            for x in range(xcoordinate1 - scanTolerance, xcoordinate1 + scanTolerance):             # Scan in front of the device and a little behind, in case of noise.
+                px1 = thresh[y1, x]                                                       # Scanning location, where the coordinate is (y,x), it is reversed which is confusing.
+                pxplusone1 = thresh[y1, x + 1]                                            # Look one pixel ahead of scanning location.
+                if px1 == WHITE and pxplusone1 == BLACK:                                            # If the scanning location is black and the next pixel is white
+                    measurements1.append((xcoordinate1 - (x + 1))*scalebar)                                   # Save the difference of the dry column and wet column (thickness of film in pixels).
+                    break
+            for x in range(xcoordinate2 - scanTolerance, xcoordinate2 + scanTolerance):             # Just like measurement1.      
+                px2 = thresh[y2, x]                       
+                pxplusone2 = thresh[y2, x + 1]            
+                if px2 == WHITE and pxplusone2 == BLACK:                    
+                    measurements2.append((xcoordinate2 - (x + 1))*scalebar)
+                    break
+            for x in range(xcoordinate3 - scanToleranceLarge, xcoordinate3 + scanTolerance):        # Just like measurement 1, except the scanning region is a little larger for a measurement at the neck.
+                px3 = thresh[y3, x]                       
+                pxplusone3 = thresh[y3, x + 1]            
+                if px3 == WHITE and pxplusone3 == BLACK:                    
+                    measurements3.append((xcoordinate3 - (x + 1))*scalebar)   
+                    cv2.rectangle(frame,(x+1,y3-5),(x+1,y3),(255,0,0),1)                  # Draw a rectangle to show the vertical scanning region.
+                    cv2.rectangle(frame,(xcoordinate3,y3-5),(xcoordinate3,y3),(0,0,255),1)                  # Draw a rectangle to show the vertical scanning region.
+                    break
+        for x in range(len(measurements1)):                                                         # For all of the measurements in meas1.
+            measure_sum1 = measure_sum1 + measurements1[x]                                          # Sum each measurement in the list.
+        for x in range(len(measurements2)):                                                         
+            measure_sum2 = measure_sum2 + measurements2[x]                                          
+        for x in range(len(measurements3)):
+            measure_sum3 = measure_sum3 + measurements3[x]                                          
+        if len(measurements1) != 0:                                                                 # If the measurement list actually has values
+            measure_avg1 = measure_sum1 / len(measurements1)                                        # Take the average by dividing the sum by the number of measurements.
+            film1.append(measure_avg1)                                                                  # Add each frame's measurement to a list called film.
+        if len(measurements2) != 0:                                                                 
+            measure_avg2 = measure_sum2 / len(measurements2)                                        
+            film2.append(measure_avg2)                                                                  
+        if len(measurements3) != 0:                                                                 
+            measure_avg3 = measure_sum3 / len(measurements3)                                        
+            film3.append(measure_avg3)
         cv2.rectangle(frame,(400,y1-1),(900,y1+1),(0,0,255),1)
         cv2.rectangle(frame,(400,y2-1),(900,y2+1),(255,0,0),1)
         cv2.rectangle(frame,(400,y3-1),(900,y3+1),(0,255,0),1)
@@ -311,8 +329,8 @@ ax1.legend((redline,blueline,greenline),('Middle of Device','Top of Device','Bot
 plt.show()                                                                         # Show the plot. 'q' will exit from it.
 
 header = "Film Depth in Microns Data 1"
-np.savetxt('tailEndSingledata1.dat',data1,header = header)
+np.savetxt('tailEnd9Avgdata1.dat',data1,header = header)
 header = "Film Depth in Microns Data 2"
-np.savetxt('tailEndSingledata2.dat',data2,header = header)
+np.savetxt('tailEnd9Avgdata2.dat',data2,header = header)
 header = "Film Depth in Microns Data 3"
-np.savetxt('tailEndSingledata3.dat',data3,header = header)
+np.savetxt('tailEnd9Avgdata3.dat',data3,header = header)
