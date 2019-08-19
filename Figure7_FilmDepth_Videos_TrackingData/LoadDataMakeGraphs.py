@@ -29,9 +29,9 @@ ax1 = fig.add_subplot(211)                                                      
 redline, = ax1.plot(time, filmDepthData1, 'r.')                                                     # Plot the film depth with red dots over time.
 ticker.xticks(np.arange(0,len(filmDepthData1),step=tickInterval),np.arange(0,totalMin,step=tenMinutes)) # Reaarange the ticks to show ten minute intervals.
 for tick in ax1.xaxis.get_major_ticks():                                                            # Change the fontsize of ticks and labels.
-    tick.label.set_fontsize(14) 
+    tick.label.set_fontsize(18) 
 for tick in ax1.yaxis.get_major_ticks():
-    tick.label.set_fontsize(14) 
+    tick.label.set_fontsize(18) 
 ax1.set_ylabel("Film Thickness (um)",fontsize = 24)
 plt.show()                                                                                          # Show plot, press q to exit.
 # Top of Device                                                                                     # Same as above.
@@ -40,9 +40,9 @@ ax1 = fig2.add_subplot(211)
 blueline, = ax1.plot(time, filmDepthData2, 'b.')
 ticker.xticks(np.arange(0,len(filmDepthData1),step=tickInterval),np.arange(0,totalMin,step=tenMinutes))
 for tick in ax1.xaxis.get_major_ticks():
-    tick.label.set_fontsize(14) 
+    tick.label.set_fontsize(18) 
 for tick in ax1.yaxis.get_major_ticks():
-    tick.label.set_fontsize(14) 
+    tick.label.set_fontsize(18) 
 ax1.set_ylabel("Film Thickness (um)",fontsize = 24)
 plt.show()    
 # Bottom of Device
@@ -51,9 +51,9 @@ ax1 = fig3.add_subplot(211)
 greenline, = ax1.plot(time, filmDepthData3, 'g.')
 ticker.xticks(np.arange(0,len(filmDepthData1),step=tickInterval),np.arange(0,totalMin,step=tenMinutes))
 for tick in ax1.xaxis.get_major_ticks():
-    tick.label.set_fontsize(14) 
+    tick.label.set_fontsize(18) 
 for tick in ax1.yaxis.get_major_ticks():
-    tick.label.set_fontsize(14) 
+    tick.label.set_fontsize(18) 
 ax1.set_ylabel("Film Thickness (um)",fontsize = 24)
 plt.show()    
 # Neck of Device
@@ -62,9 +62,9 @@ ax1 = fig4.add_subplot(211)
 yellowline, = ax1.plot(time, filmDepthData4, 'y.')
 ticker.xticks(np.arange(0,len(filmDepthData1),step=tickInterval),np.arange(0,totalMin,step=tenMinutes))
 for tick in ax1.xaxis.get_major_ticks():
-    tick.label.set_fontsize(14) 
+    tick.label.set_fontsize(18) 
 for tick in ax1.yaxis.get_major_ticks():
-    tick.label.set_fontsize(14) 
+    tick.label.set_fontsize(18) 
 ax1.set_xlabel("Time in Minutes",fontsize = 24)                                             
 ax1.set_ylabel("Film Thickness (um)",fontsize = 24)
 plt.show()    
