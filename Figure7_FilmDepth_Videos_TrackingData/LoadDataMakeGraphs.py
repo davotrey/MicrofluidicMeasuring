@@ -60,6 +60,7 @@ plt.show()
 fig4 = plt.figure(1)
 ax1 = fig4.add_subplot(211)
 yellowline, = ax1.plot(time, filmDepthData4, 'y.')
+ticker.ylim(-1, 21.5)     # set the ylim to bottom, top
 ticker.xticks(np.arange(0,len(filmDepthData1),step=tickInterval),np.arange(0,totalMin,step=tenMinutes))
 for tick in ax1.xaxis.get_major_ticks():
     tick.label.set_fontsize(18) 
