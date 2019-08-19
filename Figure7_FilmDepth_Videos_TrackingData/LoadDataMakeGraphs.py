@@ -32,7 +32,6 @@ for tick in ax1.xaxis.get_major_ticks():                                        
     tick.label.set_fontsize(14) 
 for tick in ax1.yaxis.get_major_ticks():
     tick.label.set_fontsize(14) 
-ax1.set_xlabel("Time in Minutes",fontsize = 24)                                             
 ax1.set_ylabel("Film Thickness (um)",fontsize = 24)
 plt.show()                                                                                          # Show plot, press q to exit.
 # Top of Device                                                                                     # Same as above.
@@ -66,5 +65,6 @@ for tick in ax1.xaxis.get_major_ticks():
     tick.label.set_fontsize(14) 
 for tick in ax1.yaxis.get_major_ticks():
     tick.label.set_fontsize(14) 
+ax1.set_xlabel("Time in Minutes",fontsize = 24)                                             
 ax1.set_ylabel("Film Thickness (um)",fontsize = 24)
 plt.show()    
